@@ -10,8 +10,17 @@ export async function models(settings,key,signal){const d=await request(settings
 export async function generate(settings,key,system,prompt,ctx,signal){
   if(settings.mode==='main'){
     if(typeof ctx.generateRaw!=='function')throw Error('В этой версии Таверны нет generateRaw. Обнови Таверну или выбери отдельный API.');
-    const text=await ctx.generateRaw({systemPrompt:system,prompt,responseLength:settings.output,trimNames:false});
+    let text;
+    try{
+      // generateRaw deliberately uses the connection/model currently selected in SillyTavern.
+      // URL/key/model from the separate-API section are not involved in this mode.
+      text=await ctx.generateRaw({systemPrompt:system,prompt,responseLength:settings.output,trimNames:false});
+    }catch(e){
+      const detail=e?.message||String(e);
+      throw Error(`Текущее API Таверны не ответило: ${detail}`);
+    }
     if(signal?.aborted)throw Error('Результат отменён. Память не изменена.');
+    if(typeof text!=='string'||!text.trim())throw Error('Текущее API Таверны вернуло пустой ответ. Память не изменена.');
     return {text,usage:null};
   }
   if(!settings.model.trim())throw Error('Укажи модель для отдельного API.');
