@@ -1,0 +1,12 @@
+{
+  "display_name": "Нить памяти · Memory Thread",
+  "loading_order": 60,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Created for your roleplay with OpenAI Codex",
+  "version": "1.0.0-beta.1",
+  "homePage": "",
+  "auto_update": false
+}
