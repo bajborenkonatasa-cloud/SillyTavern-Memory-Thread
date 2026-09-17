@@ -35,19 +35,42 @@ export function parseJSON(raw){
 }
 const field=(x,max=4000)=>typeof x==='string'?x.trim().slice(0,max):'';
 const strings=x=>Array.isArray(x)?x.filter(s=>typeof s==='string').map(s=>s.trim().slice(0,160)).filter(Boolean).slice(0,16):[];
+const CATEGORY_ALIASES={
+  event:['event','events','событие','события','plot','plot event','plot_event','incident','episode','эпизод'],
+  relationship:['relationship','relationships','relation','relations','отношение','отношения','relationship change','relationship_change','bond','dynamic','динамика отношений'],
+  secret:['secret','secrets','секрет','секреты','тайна','тайны','hidden info','hidden_info'],
+  promise:['promise','promises','обещание','обещания','клятва','клятвы','commitment','agreement'],
+  quote:['quote','quotes','цитата','цитаты','реплика','реплики','line','dialogue'],
+  character:['character','characters','персонаж','персонажи','trait','character trait','character_trait','habit','привычка','черта','эмоция','emotion'],
+  item:['item','items','object','objects','предмет','предметы','артефакт','артефакты'],
+  place:['place','places','location','locations','место','места','локация','локации'],
+  flashback:['flashback','flashbacks','memory','memories','воспоминание','воспоминания','ретроспектива'],
+  scene:['scene','scenes','scene state','scene_state','state','сцена','состояние сцены','состояние','situation','setting']
+};
+function normalizeCategory(value){
+  const raw=norm(value).replace(/^[^\p{L}\p{N}]+/u,'').replace(/[_-]+/g,' ').trim();
+  if(Object.hasOwn(CATEGORIES,raw))return raw;
+  for(const [key,list] of Object.entries(CATEGORY_ALIASES))if(list.includes(raw))return key;
+  for(const [key,label] of Object.entries(CATEGORIES)){const cleaned=norm(label).replace(/^[^\p{L}\p{N}]+/u,'').trim();if(raw===cleaned)return key;}
+  return '';
+}
 export function validateExtraction(raw,rows){
   const p=typeof raw==='string'?parseJSON(raw):raw;
   if(!p||!field(p.summary)||!field(p.scene)||!Array.isArray(p.entries)||p.entries.length>100)throw Error('Нужны непустые summary, scene и массив entries. Ничего не сохранено.');
   const allowed=new Map(rows.map(r=>[r.i,r]));
   const warnings=[];
-  const entries=p.entries.map((e,n)=>{
-    if(!e||!field(e.text)||!Object.hasOwn(CATEGORIES,e.category))throw Error(`Запись ${n+1}: неверный текст или категория.`);
+  const entries=[];
+  p.entries.forEach((e,n)=>{
+    if(!e||typeof e!=='object'){warnings.push(`Запись ${n+1} пропущена: неверный формат.`);return;}
+    const text=field(e.text),category=normalizeCategory(e.category);
+    if(!text){warnings.push(`Запись ${n+1} пропущена: нет текста.`);return;}
+    if(!category){warnings.push(`Запись ${n+1} пропущена: неизвестная категория «${field(e.category,80)||'пусто'}».`);return;}
     const indices=Array.isArray(e.source_indices)?e.source_indices.map(i=>typeof i==='string'&&/^\d+$/.test(i.trim())?Number(i):i):[];
-    if(!indices.length||!indices.every(i=>Number.isInteger(i)&&allowed.has(i)))throw Error(`Запись ${n+1}: источник вне выбранного диапазона.`);
+    if(!indices.length||!indices.every(i=>Number.isInteger(i)&&allowed.has(i))){warnings.push(`Запись ${n+1} пропущена: источник вне выбранного диапазона.`);return;}
     const refs=[...new Set(indices)].map(i=>source(allowed.get(i).m,i));
     let quote=field(e.quote,3000),quoteSpeaker=field(e.quote_speaker,160),quoteIndex=null;
-    if(quote){const found=indices.find(i=>allowed.get(i).m.mes.includes(quote));if(found===undefined){warnings.push(`«${field(e.title,80)||e.category}»: неточная цитата удалена.`);quote='';quoteSpeaker='';}else{quoteIndex=found;if(!quoteSpeaker)quoteSpeaker=allowed.get(found).m.name||'';}}
-    return {id:uid(),key:field(e.key,180)||norm(`${e.category}:${e.title||e.text}`),title:field(e.title,180)||field(e.text,80),category:e.category,text:field(e.text),date:field(e.date,240),participants:strings(e.participants),knownTo:strings(e.known_to),keywords:strings(e.keywords),quote,quoteSpeaker,quoteIndex,importance:['high','medium','low'].includes(e.importance)?e.importance:'medium',certainty:['fact','belief','dream','unknown'].includes(e.certainty)?e.certainty:'fact',sources:refs,manual:false,locked:false,pinned:false,disabled:false,created:Date.now()};
+    if(quote){const found=indices.find(i=>allowed.get(i).m.mes.includes(quote));if(found===undefined){warnings.push(`«${field(e.title,80)||category}»: неточная цитата удалена.`);quote='';quoteSpeaker='';}else{quoteIndex=found;if(!quoteSpeaker)quoteSpeaker=allowed.get(found).m.name||'';}}
+    entries.push({id:uid(),key:field(e.key,180)||norm(`${category}:${e.title||text}`),title:field(e.title,180)||field(text,80),category,text,date:field(e.date,240),participants:strings(e.participants),knownTo:strings(e.known_to),keywords:strings(e.keywords),quote,quoteSpeaker,quoteIndex,importance:['high','medium','low'].includes(e.importance)?e.importance:'medium',certainty:['fact','belief','dream','unknown'].includes(e.certainty)?e.certainty:'fact',sources:refs,manual:false,locked:false,pinned:false,disabled:false,created:Date.now()});
   });
   return {summary:field(p.summary,8000),scene:field(p.scene,6000),date:field(p.date,240),overview:field(p.overview,10000),entries,warnings};
 }
