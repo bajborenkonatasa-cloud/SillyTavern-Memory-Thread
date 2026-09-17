@@ -7,7 +7,7 @@ let settings, panel, body, dialog, tab='now', busy=false, writing=false, aborter
 const $=(s,root=document)=>root.querySelector(s);
 const escape=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const attr=escape;
-const snapshotMessage=m=>({name:String(m?.name??''),is_user:!!m?.is_user,mes:String(m?.mes??''),extra:{memoryThreadId:m?.extra?.memoryThreadId}});
+const snapshotMessage=m=>({name:String(m?.name??''),is_user:!!m?.is_user,is_system:!!m?.is_system,is_hidden:!!m?.is_hidden,mes:String(m?.mes??''),extra:{memoryThreadId:m?.extra?.memoryThreadId,isHidden:!!m?.extra?.isHidden}});
 const scope=()=>`${ctx().groupId||'solo'}:${ctx().characterId??''}:${ctx().getCurrentChatId?.()??ctx().chatId??''}`;
 function mem(){const c=ctx();return c.chatMetadata?.[KEY]||emptyMemory();}
 function chat(){return ctx().chat||[];}
@@ -60,8 +60,28 @@ async function refreshContext(showToast=false){
 function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>refreshContext().then(()=>render()).catch(error),100);}
 function openPanel(nextTab){if(nextTab)tab=nextTab;panel.hidden=false;render();refreshContext().then(()=>{if(tab==='context')render();}).catch(error);}
 function modal(title,html,onSubmit,submit='Сохранить'){
-  if(dialog.open)dialog.close();dialog.innerHTML=`<form id="mt-form"><h3>${escape(title)}</h3>${html}<div class="mt-error" id="mt-dialog-error" role="alert"></div><div class="mt-row mt-actions"><button type="submit" class="mt-primary">${escape(submit)}</button><button type="button" data-close>Отмена</button></div></form>`;
-  $('[data-close]',dialog).onclick=()=>dialog.close();$('#mt-form',dialog).onsubmit=async e=>{e.preventDefault();const form=e.target,button=$('[type=submit]',form);button.disabled=true;try{await onSubmit(new FormData(form));if(dialog.open&&$('#mt-form',dialog)===form)dialog.close();}catch(err){console.error('[Memory Thread]',err);if(dialog.open&&$('#mt-form',dialog)===form)$('#mt-dialog-error',dialog).textContent=err.message||String(err);else error(err);}finally{button.disabled=false;}};dialog.showModal();
+  // Keep one <dialog> open while moving between wizard steps. Closing and immediately
+  // reopening the same dialog is unreliable in some Android/WebView builds.
+  const alreadyOpen=dialog.open;
+  dialog.innerHTML=`<form id="mt-form"><h3>${escape(title)}</h3>${html}<div class="mt-error" id="mt-dialog-error" role="alert"></div><div class="mt-row mt-actions"><button type="submit" class="mt-primary">${escape(submit)}</button><button type="button" data-close>Отмена</button></div></form>`;
+  $('[data-close]',dialog).onclick=()=>dialog.close();
+  $('#mt-form',dialog).onsubmit=async e=>{
+    e.preventDefault();
+    const form=e.target,button=$('[type=submit]',form),label=button.textContent;
+    button.disabled=true;button.textContent='Подготавливаю…';
+    try{
+      await onSubmit(new FormData(form));
+      if(dialog.open&&$('#mt-form',dialog)===form)dialog.close();
+    }catch(err){
+      console.error('[Memory Thread]',err);
+      if(dialog.open&&$('#mt-form',dialog)===form){
+        $('#mt-dialog-error',dialog).textContent=err.message||String(err);
+      }else error(err);
+    }finally{
+      if(button.isConnected){button.disabled=false;button.textContent=label;}
+    }
+  };
+  if(!alreadyOpen)dialog.showModal();
 }
 function showText(title,text){modal(title,`<pre>${escape(text)}</pre>`,async()=>{},'Понятно');}
 function requireIdle(){if(writing)throw Error('Дождись завершения сохранения.');if(busy)throw Error('Дождись завершения обработки или нажми «Отменить запрос».');if(!chat().length)throw Error('Сначала открой чат с сообщениями.');}
@@ -122,7 +142,7 @@ function deleteRecord(id){
   modal('🗑 Удалить воспоминание',`<div class="mt-info mt-warn">Будут окончательно удалены все версии записи <strong>${escape(r.title)}</strong> с этим ключом. Сводки сцен и исходные сообщения останутся.</div><p>Если позже пересканировать старую сцену, архивариус может создать похожий факт заново.</p>`,async()=>{forced=forced.filter(x=>x.id!==id);await mutate(m=>{m.records=m.records.filter(x=>x.key!==r.key);m.dismissed=m.dismissed.filter(k=>k!==r.key);});notify('Воспоминание удалено',r.title,()=>openPanel('memories'));},'Удалить навсегда');
 }
 function showSources(sources){if(!sources.length){showText('Источник','Ручная или импортированная запись без привязки к сообщениям.');return;}const map=sourceMap(chat());showText('Исходные сообщения',sources.map(s=>{const v=map.get(s.id),m=v?chat()[v.index]:null;return m?`#${v.index} · ${m.name}\n${m.mes}${v.hash!==s.hash?'\n[Текст изменён после записи]':''}`:`#${s.index} — источник отсутствует в этой ветке`;}).join('\n\n────────\n\n'));}
-function chooseRange(){requireIdle();const r=nextRange(mem(),chat(),settings.chunk)||[Math.max(0,chat().length-settings.chunk),chat().length-1];modal('Обработать диапазон',`<div class="mt-info">Номера сообщений как в Таверне, начиная с 0. Скрытые сообщения включаются; уже обработанный диапазон можно пересканировать.</div><br><div class="mt-grid">${input('from','С сообщения №',r[0],'number',`min="0" max="${chat().length-1}" required`)}${input('to','По сообщение № включительно',r[1],'number',`min="0" max="${chat().length-1}" required`)}</div>`,async f=>{const from=Number(f.get('from')),to=Number(f.get('to'));rangeMessages(chat(),from,to);dialog.close();setTimeout(()=>prepareScan(from,to).catch(error),0);},'Показать перед отправкой');}
+function chooseRange(){requireIdle();const r=nextRange(mem(),chat(),settings.chunk)||[Math.max(0,chat().length-settings.chunk),chat().length-1];modal('Обработать диапазон',`<div class="mt-info">Номера сообщений как в Таверне, начиная с 0. Скрытые сообщения включаются; уже обработанный диапазон можно пересканировать.</div><br><div class="mt-grid">${input('from','С сообщения №',r[0],'number',`min="0" max="${chat().length-1}" required`)}${input('to','По сообщение № включительно',r[1],'number',`min="0" max="${chat().length-1}" required`)}</div>`,async f=>{const from=Number(f.get('from')),to=Number(f.get('to'));rangeMessages(chat(),from,to);await prepareScan(from,to);},'Показать перед отправкой');}
 async function prepareScan(from,to){
   requireIdle();const expected=scope(),epoch=life;
   if(ensureIds(chat()))await ctx().saveChat();
@@ -216,7 +236,7 @@ function dragFab(fab){let drag=null,suppress=false;fab.addEventListener('pointer
 function positionFab(x,y){const fab=$('#mt-fab');fab.style.right='auto';fab.style.bottom='auto';fab.style.left=Math.max(4,Math.min(innerWidth-64,x))+'px';fab.style.top=Math.max(4,Math.min(innerHeight-64,y))+'px';}
 function mount(){
   const fab=document.createElement('button');fab.id='mt-fab';fab.innerHTML='🧵<small>0</small>';fab.title='Нить памяти · перетащи или нажми';fab.setAttribute('aria-label','Открыть Нить памяти');document.body.append(fab);dragFab(fab);if(settings.left!==null)positionFab(settings.left,settings.top);
-  panel=document.createElement('section');panel.id='mt-panel';panel.hidden=true;panel.setAttribute('aria-label','Нить памяти');panel.innerHTML=`<header class="mt-head"><div class="mt-head-mark">🧵</div><div class="mt-head-copy"><div class="mt-kicker">MEMORY THREAD · STORY JOURNAL</div><h2>Нить памяти</h2><div class="mt-sub" id="mt-status"></div></div><button class="mt-icon" id="mt-close" aria-label="Закрыть панель">×</button></header><div id="mt-progress" class="mt-progress" hidden></div><div class="mt-toolbar"><button class="mt-primary mt-main-action" data-action="new" data-work>✨ Запомнить новое</button><button data-action="range" data-work>📖 Диапазон</button><button id="mt-cancel" hidden>✕ Отменить</button></div><nav class="mt-tabs" aria-label="Разделы памяти">${[['now','🕯','Сейчас'],['memories','🌙','Память'],['history','📚','История'],['context','🧠','Контекст'],['settings','⚙','Настройки']].map(([id,icon,t])=>`<button data-tab="${id}" aria-selected="false"><span>${icon}</span><small>${t}</small></button>`).join('')}</nav><div id="mt-body"></div><footer class="mt-footer"><span id="mt-budget"></span><span class="mt-muted">✦ ручной режим</span></footer>`;document.body.append(panel);body=$('#mt-body');
+  panel=document.createElement('section');panel.id='mt-panel';panel.hidden=true;panel.setAttribute('aria-label','Нить памяти');panel.innerHTML=`<header class="mt-head"><div class="mt-head-mark">🧵</div><div class="mt-head-copy"><div class="mt-kicker">MEMORY THREAD · STORY JOURNAL · β3.2</div><h2>Нить памяти</h2><div class="mt-sub" id="mt-status"></div></div><button class="mt-icon" id="mt-close" aria-label="Закрыть панель">×</button></header><div id="mt-progress" class="mt-progress" hidden></div><div class="mt-toolbar"><button class="mt-primary mt-main-action" data-action="new" data-work>✨ Запомнить новое</button><button data-action="range" data-work>📖 Диапазон</button><button id="mt-cancel" hidden>✕ Отменить</button></div><nav class="mt-tabs" aria-label="Разделы памяти">${[['now','🕯','Сейчас'],['memories','🌙','Память'],['history','📚','История'],['context','🧠','Контекст'],['settings','⚙','Настройки']].map(([id,icon,t])=>`<button data-tab="${id}" aria-selected="false"><span>${icon}</span><small>${t}</small></button>`).join('')}</nav><div id="mt-body"></div><footer class="mt-footer"><span id="mt-budget"></span><span class="mt-muted">✦ ручной режим</span></footer>`;document.body.append(panel);body=$('#mt-body');
   dialog=document.createElement('dialog');dialog.id='mt-dialog';document.body.append(dialog);const toast=document.createElement('aside');toast.id='mt-toast';toast.hidden=true;toast.setAttribute('role','status');document.body.append(toast);
   $('#mt-close').onclick=()=>panel.hidden=true;$('#mt-cancel').onclick=()=>{aborter?.abort();notify('Отмена запрошена','Результат не будет применён. API Таверны может завершить запрос в фоне.');};
   panel.addEventListener('click',e=>{const el=e.target.closest('button');if(!el)return;if(el.dataset.tab){tab=el.dataset.tab;render();return;}const run=async()=>{if(el.dataset.action)await action(el.dataset.action);if(el.dataset.card)await cardAction(el.dataset.card,el.closest('[data-id]').dataset.id);if(el.dataset.batch){const b=mem().batches.find(b=>b.id===el.dataset.batch);if(b)showSources(b.sources);}};run().catch(error);});
