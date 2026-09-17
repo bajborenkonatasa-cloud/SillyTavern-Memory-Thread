@@ -23,7 +23,16 @@ export function activeRecords(mem,chat){
 export function coverage(mem,chat){const map=sourceMap(chat);const covered=new Set();for(const b of mem.batches){if(validSources(b.sources,map))for(const s of b.sources)covered.add(s.id);}return chat.map((m,i)=>({index:i,covered:covered.has(m.extra?.memoryThreadId),eligible:eligible(m)}));}
 export function nextRange(mem,chat,limit=15){const list=coverage(mem,chat);const first=list.find(x=>x.eligible&&!x.covered);if(!first)return null;let end=first.index,count=0;for(let i=first.index;i<list.length;i++){if(list[i].eligible&&list[i].covered)break;end=i;if(list[i].eligible&&++count>=limit)break;}return [first.index,end];}
 export function rangeMessages(chat,from,to){if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<from||to>=chat.length)throw Error('Неверный диапазон. Номера сообщений начинаются с 0.');return chat.map((m,i)=>({m,i})).slice(from,to+1).filter(x=>eligible(x.m));}
-export function parseJSON(raw){let text=String(raw||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');const start=text.indexOf('{'),end=text.lastIndexOf('}');if(start<0||end<start)throw Error('Модель не вернула JSON. Память не изменена.');let p;try{p=JSON.parse(text.slice(start,end+1));}catch{throw Error('Неполный или повреждённый JSON. Увеличь лимит ответа или уменьши диапазон.');}return p;}
+export function parseJSON(raw){
+  const text=String(raw||'').trim();if(!text)throw Error('Модель не вернула JSON. Память не изменена.');
+  const candidates=[];
+  for(const m of text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi))candidates.push(m[1].trim());
+  // Collect balanced JSON objects while respecting quoted braces. This recovers a valid
+  // final JSON object even when a model prepends prose/reasoning containing other braces.
+  for(let start=0;start<text.length;start++){if(text[start]!=='{')continue;let depth=0,string=false,escapeNext=false;for(let i=start;i<text.length;i++){const ch=text[i];if(string){if(escapeNext)escapeNext=false;else if(ch==='\\')escapeNext=true;else if(ch==='"')string=false;continue;}if(ch==='"'){string=true;continue;}if(ch==='{')depth++;else if(ch==='}'&&--depth===0){candidates.push(text.slice(start,i+1));break;}}}
+  let fallback=null;for(const candidate of candidates){try{const p=JSON.parse(candidate);if(p&&typeof p==='object'){if('summary'in p&&'scene'in p&&'entries'in p)return p;fallback=p;}}catch{}}
+  if(fallback)return fallback;throw Error('Неполный или повреждённый JSON. Увеличь лимит ответа, уменьши диапазон или используй JSON-совместимую модель.');
+}
 const field=(x,max=4000)=>typeof x==='string'?x.trim().slice(0,max):'';
 const strings=x=>Array.isArray(x)?x.filter(s=>typeof s==='string').map(s=>s.trim().slice(0,160)).filter(Boolean).slice(0,16):[];
 export function validateExtraction(raw,rows){
@@ -33,10 +42,11 @@ export function validateExtraction(raw,rows){
   const warnings=[];
   const entries=p.entries.map((e,n)=>{
     if(!e||!field(e.text)||!Object.hasOwn(CATEGORIES,e.category))throw Error(`Запись ${n+1}: неверный текст или категория.`);
-    if(!Array.isArray(e.source_indices)||!e.source_indices.length||!e.source_indices.every(i=>Number.isInteger(i)&&allowed.has(i)))throw Error(`Запись ${n+1}: источник вне выбранного диапазона.`);
-    const refs=[...new Set(e.source_indices)].map(i=>source(allowed.get(i).m,i));
+    const indices=Array.isArray(e.source_indices)?e.source_indices.map(i=>typeof i==='string'&&/^\d+$/.test(i.trim())?Number(i):i):[];
+    if(!indices.length||!indices.every(i=>Number.isInteger(i)&&allowed.has(i)))throw Error(`Запись ${n+1}: источник вне выбранного диапазона.`);
+    const refs=[...new Set(indices)].map(i=>source(allowed.get(i).m,i));
     let quote=field(e.quote,3000),quoteSpeaker=field(e.quote_speaker,160),quoteIndex=null;
-    if(quote){const found=e.source_indices.find(i=>allowed.get(i).m.mes.includes(quote));if(found===undefined){warnings.push(`«${field(e.title,80)||e.category}»: неточная цитата удалена.`);quote='';quoteSpeaker='';}else{quoteIndex=found;if(!quoteSpeaker)quoteSpeaker=allowed.get(found).m.name||'';}}
+    if(quote){const found=indices.find(i=>allowed.get(i).m.mes.includes(quote));if(found===undefined){warnings.push(`«${field(e.title,80)||e.category}»: неточная цитата удалена.`);quote='';quoteSpeaker='';}else{quoteIndex=found;if(!quoteSpeaker)quoteSpeaker=allowed.get(found).m.name||'';}}
     return {id:uid(),key:field(e.key,180)||norm(`${e.category}:${e.title||e.text}`),title:field(e.title,180)||field(e.text,80),category:e.category,text:field(e.text),date:field(e.date,240),participants:strings(e.participants),knownTo:strings(e.known_to),keywords:strings(e.keywords),quote,quoteSpeaker,quoteIndex,importance:['high','medium','low'].includes(e.importance)?e.importance:'medium',certainty:['fact','belief','dream','unknown'].includes(e.certainty)?e.certainty:'fact',sources:refs,manual:false,locked:false,pinned:false,disabled:false,created:Date.now()};
   });
   return {summary:field(p.summary,8000),scene:field(p.scene,6000),date:field(p.date,240),overview:field(p.overview,10000),entries,warnings};
@@ -98,7 +108,7 @@ For changed states reuse the existing key and state what changed and why. Use se
 
 summary: selected range only, <=180 words. scene: end-state of this range, <=100 words. overview: chronological story so far, <=220 words; insert older ranges by message number and preserve earlier consequences.
 
-Return JSON only:
+Return JSON only: one valid JSON object. Do not use markdown fences, commentary, or analysis in the final answer.
 {"summary":"...","scene":"...","date":"","overview":"...","entries":[{"key":"event:id","title":"...","category":"event|relationship|secret|promise|quote|character|item|place|flashback|scene","text":"...","date":"","participants":["..."],"known_to":[],"keywords":["..."],"quote":"","quote_speaker":"","importance":"high|medium|low","certainty":"fact|belief|dream|unknown","source_indices":[0]}]}
 
 entries may be []; summary and scene are required. Max 20 new entries.`;

@@ -30,10 +30,18 @@ export async function generate(settings,key,system,prompt,ctx,signal){
     return {text,usage:null};
   }
   if(!settings.model.trim())throw Error('Укажи модель для отдельного API.');
-  const d=await request(settings,key,'chat/completions',{model:settings.model,messages:[{role:'system',content:system},{role:'user',content:prompt}],stream:false,max_tokens:settings.output},signal);
-  const c=d.choices?.[0];let text=c?.message?.content;
-  if(Array.isArray(text))text=text.map(x=>x.text||'').join('\n');
-  if(c?.finish_reason==='length')throw Error('Ответ модели обрезан. Увеличь лимит ответа или уменьши диапазон.');
-  if(typeof text!=='string'||!text.trim())throw Error('Модель вернула пустой ответ. Память не изменена.');
-  return {text,usage:d.usage||null};
+  const body={model:settings.model,messages:[{role:'system',content:system},{role:'user',content:prompt}],stream:false,max_tokens:settings.output,temperature:0.2};
+  // rout.my documents OpenAI-style JSON object mode. Asking for it makes archive output
+  // much less likely to be wrapped in prose or malformed markdown. Other generic APIs
+  // keep the plain Chat Completions request for compatibility.
+  try{if(new URL(baseURL(settings.url)).hostname.toLowerCase().endsWith('rout.my'))body.response_format={type:'json_object'};}catch{}
+  const d=await request(settings,key,'chat/completions',body,signal);
+  const c=d.choices?.[0],message=c?.message||{};
+  const asText=value=>{if(typeof value==='string')return value;if(Array.isArray(value))return value.map(x=>typeof x==='string'?x:(x?.text||x?.content||'')).filter(Boolean).join('\n');return '';};
+  let text=asText(message.content)||asText(c?.text)||asText(d?.output_text);
+  const reasoning=asText(message.reasoning_content)||asText(message.reasoning);
+  if(c?.finish_reason==='length')throw Error(`Ответ модели обрезан${reasoning?' после reasoning':''}. Увеличь лимит ответа или уменьши диапазон.`);
+  if(!text.trim()&&reasoning.trim())throw Error('Модель потратила ответ на внутреннее рассуждение, но не вернула финальный текст. Для памяти выбери менее «думающую» модель или увеличь максимум токенов ответа. Память не изменена.');
+  if(!text.trim())throw Error('Модель вернула пустой финальный ответ. Память не изменена.');
+  return {text,usage:d.usage||null,finishReason:c?.finish_reason||'',model:d.model||settings.model,reasoningTokens:Number(d?.usage?.completion_tokens_details?.reasoning_tokens||0)};
 }
