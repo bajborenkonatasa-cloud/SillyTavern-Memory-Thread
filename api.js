@@ -3,8 +3,14 @@ async function request(settings,key,path,body,signal){
   const timeout=AbortSignal.timeout(180000), combined=signal?AbortSignal.any([signal,timeout]):timeout;
   let response;
   try{response=await fetch(`${baseURL(settings.url)}/${path}`,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(key?{Authorization:`Bearer ${key}`}:{})},body:body?JSON.stringify(body):undefined,signal:combined,credentials:'omit',redirect:'error'});}catch(e){if(combined.aborted)throw Error('Запрос отменён или превысил 3 минуты. Память не изменена.');throw Error('Не удалось обратиться к API. Проверь URL, сеть и CORS у провайдера. Можно переключиться на API Таверны.');}
-  if(!response.ok)throw Error(`API: HTTP ${response.status}. ${response.status===401?'Проверь ключ.':response.status===429?'Лимит запросов или баланс.':response.status===400?'Проверь модель, лимит ответа и формат API.':'Запрос не выполнен.'}`);
-  let data;try{data=await response.json();}catch{throw Error('API вернул не JSON. Проверь адрес.');}return data;
+  if(!response.ok){
+    let provider='';
+    try{const raw=await response.text();if(raw){try{const parsed=JSON.parse(raw);provider=parsed?.error?.message||parsed?.message||raw;}catch{provider=raw;}}}catch{}
+    provider=String(provider||'').replace(/\s+/g,' ').trim().slice(0,600);
+    const hint=response.status===401?'Проверь API-ключ.':response.status===429?'Проверь лимит запросов или баланс.':response.status===400?'Проверь модель, лимит ответа и формат API.':response.status>=500?'Провайдер временно недоступен или перегружен.':'Запрос не выполнен.';
+    throw Error(`API: HTTP ${response.status}. ${hint}${provider?`\nОтвет провайдера: ${provider}`:''}`);
+  }
+  let data;try{data=await response.json();}catch{throw Error('API вернул не JSON. Проверь адрес и совместимость OpenAI API.');}return data;
 }
 export async function models(settings,key,signal){const d=await request(settings,key,'models',null,signal);if(!Array.isArray(d.data))throw Error('Нет списка моделей. Введи имя вручную.');return d.data.map(x=>x.id).filter(x=>typeof x==='string').sort();}
 export async function generate(settings,key,system,prompt,ctx,signal){
