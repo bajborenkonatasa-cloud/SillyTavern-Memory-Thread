@@ -33,7 +33,7 @@
 #mt-fab{background:radial-gradient(circle at 35% 25%,#b997da,#62467c 52%,#352841);box-shadow:0 8px 28px #0007,0 0 0 4px #a681c113}.mt-footer{background:#0d0e111f;backdrop-filter:blur(8px)}
 @media(max-width:600px){.mt-head{padding:13px 13px 11px}.mt-head-mark{width:38px;height:38px;flex-basis:38px;font-size:20px}.mt-head h2{font-size:21px}.mt-head:after{display:none}.mt-toolbar{padding:10px 10px 8px}.mt-toolbar button{flex:1}.mt-tabs{padding:5px 5px 8px;gap:2px}.mt-tabs button{padding:6px 1px!important}.mt-tabs button span{font-size:15px}.mt-tabs button small{font-size:9px}#mt-body{padding:12px 10px 15px}.mt-journal-title{font-size:20px}.mt-journal-hero{padding:17px 11px}.mt-history-card{padding-left:49px}.mt-history-number{left:10px}.mt-history-card:before{left:25px}.mt-card-actions button{font-size:11px!important;padding:6px 7px!important}.mt-card-actions .mt-danger{margin-left:0}.mt-section-heading h3{font-size:19px}}
 
-/* beta.3.3 · subtle journal sparkle pass */
+/* beta.3.4 · subtle journal sparkle pass */
 #mt-panel:after{content:'✦';position:absolute;right:13px;top:92px;z-index:2;pointer-events:none;font-size:10px;color:#eadcff;opacity:.28;text-shadow:0 0 10px #d9bfff99;animation:mt-twinkle 3.8s ease-in-out infinite}
 .mt-journal-ornament{color:#e6d5f5;text-shadow:0 0 10px #d8b9f77a,0 0 18px #f0c8dc3d;animation:mt-twinkle 4.4s ease-in-out infinite}
 .mt-journal-hero{background-image:radial-gradient(circle at 18% 24%,#fff8 0 1px,transparent 1.8px),radial-gradient(circle at 78% 17%,#fff6 0 1px,transparent 1.8px),radial-gradient(circle at 88% 72%,#fff5 0 1px,transparent 1.8px),linear-gradient(145deg,#c39ce41a,#e7aec016 54%,#f1d2a50b);background-size:auto,auto,auto,auto}
@@ -44,3 +44,6 @@
 @keyframes mt-twinkle{0%,100%{opacity:.24;transform:translateY(0) scale(.96)}50%{opacity:.7;transform:translateY(-1px) scale(1.08)}}
 @media(prefers-reduced-motion:reduce){#mt-panel:after,.mt-journal-ornament{animation:none}}
 .mt-head .mt-kicker{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* beta.4 · Chronicle */
+.mt-chapters{display:grid;gap:10px;margin:12px 0 18px}.mt-chapter-card{padding:0!important;overflow:hidden;border-left:4px solid #b895dc}.mt-chapter-card>summary{list-style:none;cursor:pointer;padding:14px 16px;background:linear-gradient(135deg,#b895dc16,#ffffff06)}.mt-chapter-card>summary::-webkit-details-marker{display:none}.mt-chapter-card>summary:before{content:'▸';display:inline-block;margin-right:8px;transition:transform .18s ease}.mt-chapter-card[open]>summary:before{transform:rotate(90deg)}.mt-chapter-body{padding:4px 16px 14px}.mt-mini-scene{padding:12px 0;border-top:1px solid #d8c4eb18}.mt-mini-scene:first-child{border-top:0}.mt-mini-scene p{margin:6px 0 9px}.mt-scenes-heading{margin-top:20px}.mt-topic-results{display:grid;gap:9px;max-height:55vh;overflow:auto;margin:12px 0}.mt-topic-item{padding:11px 12px;border:1px solid #d4bee52b;border-radius:12px;background:#ffffff07}.mt-topic-item p{margin:6px 0 0}.mt-library-actions{flex-wrap:wrap}

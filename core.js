@@ -1,7 +1,7 @@
 // Framework-free memory mechanics. No network, DOM or SillyTavern dependencies.
 export const VERSION = 1;
 export const CATEGORIES = {event:'✨ Событие', relationship:'💞 Отношения', secret:'🔒 Секрет', promise:'🎗 Обещание', quote:'❝ Реплика', character:'👤 Персонаж', item:'🗝 Предмет', place:'🏡 Место', flashback:'🌙 Воспоминание', scene:'🌦 Состояние сцены'};
-export const DEFAULTS = {enabled:true,mode:'main',url:'',model:'',budget:1500,depth:2,chunk:15,remind:15,autoRecall:true,toast:true,cooldown:8,output:2400,inputLimit:14000,adultContent:false,adultDetail:false,customPrompt:'',left:null,top:null};
+export const DEFAULTS = {enabled:true,mode:'main',url:'',model:'',budget:1500,depth:2,chunk:15,remind:15,autoRecall:true,toast:true,cooldown:8,output:2400,inputLimit:14000,chapterSize:5,adultContent:false,adultDetail:false,customPrompt:'',left:null,top:null};
 export const uid = () => globalThis.crypto.randomUUID();
 export const clone = x => JSON.parse(JSON.stringify(x));
 export const norm = x => String(x ?? '').toLocaleLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
