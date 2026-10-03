@@ -19,6 +19,24 @@ export function makeChapters(batches, map, size=5){
   return chapters;
 }
 
+export function makeArcs(chapters, size=4){
+  const n=Math.max(2,Number(size)||4), arcs=[];
+  for(let i=0;i<chapters.length;i+=n){
+    const group=chapters.slice(i,i+n);
+    const froms=group.map(c=>c.from).filter(Number.isInteger), tos=group.map(c=>c.to).filter(Number.isInteger);
+    arcs.push({
+      number:arcs.length+1,
+      from:froms.length?Math.min(...froms):null,
+      to:tos.length?Math.max(...tos):null,
+      chapters:group,
+      title:`Арка ${arcs.length+1}`,
+      date:group.map(c=>c.date).filter(Boolean).join(' → '),
+      text:group.map(c=>c.text).filter(Boolean).join('\n\n')
+    });
+  }
+  return arcs;
+}
+
 export function topicMatches(records, query){
   const q=norm(query); if(!q)return [];
   const parts=q.split(' ').filter(Boolean);
