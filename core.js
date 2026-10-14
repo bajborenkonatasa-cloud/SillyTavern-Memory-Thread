@@ -1,7 +1,7 @@
 // Framework-free memory mechanics. No network, DOM or SillyTavern dependencies.
 export const VERSION = 1;
 export const CATEGORIES = {event:'✨ Событие', relationship:'💞 Отношения', secret:'🔒 Секрет', promise:'🎗 Обещание', quote:'❝ Реплика', character:'👤 Персонаж', item:'🗝 Предмет', place:'🏡 Место', flashback:'🌙 Воспоминание', scene:'🌦 Состояние сцены'};
-export const DEFAULTS = {enabled:true,mode:'main',url:'',model:'',budget:1500,depth:2,chunk:15,remind:15,autoArchive:false,autoEvery:30,autoRecall:true,toast:true,cooldown:8,output:2400,inputLimit:14000,chapterSize:5,adultContent:false,adultDetail:false,customPrompt:'',left:null,top:null};
+export const DEFAULTS = {compactOverview:false,compactOverviewChars:900,enabled:true,mode:'main',url:'',model:'',budget:1500,depth:2,chunk:15,remind:15,autoArchive:false,autoEvery:30,autoRecall:true,toast:true,cooldown:8,output:2400,inputLimit:14000,chapterSize:5,adultContent:false,adultDetail:false,customPrompt:'',left:null,top:null};
 export const uid = () => globalThis.crypto.randomUUID();
 export const clone = x => JSON.parse(JSON.stringify(x));
 export const norm = x => String(x ?? '').toLocaleLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
@@ -83,6 +83,21 @@ export function words(text){return [...new Set(norm(text).match(/[\p{L}\p{N}]{3,
 export function rank(r,query){const q=norm(query),qw=new Set(words(query));const keys=[...r.keywords,...r.participants];const matches=keys.filter(k=>norm(k).length>2&&q.includes(norm(k)));const common=words(`${r.title} ${r.text}`).filter(w=>qw.has(w));return {score:matches.length*6+Math.min(common.length,5),reason:matches.length?matches.slice(0,3).join(', '):common.slice(0,3).join(', ')};}
 export function recordText(r){return `[${CATEGORIES[r.category]||r.category}] ${r.title}${r.date?' · '+r.date:''}\n${r.text}${r.participants.length?'\nУчастники: '+r.participants.join(', '):''}${r.knownTo.length?'\nЗнают: '+r.knownTo.join(', '):r.category==='secret'?'\nКто знает: не установлено; не раскрывать автоматически.':''}${r.certainty!=='fact'?'\nСтатус: '+({belief:'мнение/подозрение',dream:'сон/видение',unknown:'неясно'}[r.certainty]||r.certainty):''}${r.quote?'\nЦитата ('+r.quoteSpeaker+'): «'+r.quote+'»':''}`;}
 export const estimateTokens=text=>Math.ceil(String(text).length/2.5);
+// Reversible, extractive compression: never modifies original memories or invents facts.
+// Keep first/last sentences and sentences with consequences or named commitments.
+export function compactOverviewText(value, limit=900){
+  const raw=String(value||'').trim();const cap=Math.max(350,Math.min(3000,Number(limit)||900));
+  if(raw.length<=cap)return raw;
+  const sentences=(raw.match(/[^.!?\n]+(?:[.!?]+|$)/g)||[raw]).map(x=>x.trim()).filter(Boolean);
+  if(sentences.length<2)return raw.slice(0,cap-1).trimEnd()+'…';
+  const scored=sentences.map((text,i)=>({text,i,score:(i===0?6:0)+(i===sentences.length-1?9:0)+(/обещал|обещала|тайн|узнал|узнала|решил|решила|погиб|умер|изменил|предал|отношени|последств|причин|теперь|после этого|договорил|запрет|раскрыл|беремен|ребен|ребён/iu.test(text)?5:0)}));
+  const chosen=new Set();let length=0;
+  for(const item of scored.sort((a,b)=>b.score-a.score||a.i-b.i)){
+    if(length+item.text.length+2>cap)continue;chosen.add(item.i);length+=item.text.length+2;
+  }
+  const result=sentences.filter((_,i)=>chosen.has(i)).join(' ').trim();
+  return result||raw.slice(0,cap-1).trimEnd()+'…';
+}
 export async function buildContext(mem,chat,settings,count=estimateTokens,forced=[]){
   const query=chat.filter(eligible).slice(-4).map(m=>m.mes).join('\n');
   const records=activeRecords(mem,chat); const scene=latestScene(mem,chat),overview=latestOverview(mem,chat);
@@ -94,7 +109,7 @@ export async function buildContext(mem,chat,settings,count=estimateTokens,forced
   if(scene)await add('ПОСЛЕДНЯЯ СОХРАНЁННАЯ СЦЕНА'+(scene.date?' · '+scene.date:''),scene.scene);
   // Explicit and pinned memories have priority over the broad overview.
   for(const {r} of ranked.filter(x=>forcedMap.has(x.r.id)||x.r.pinned))await add(forcedMap.get(r.id)?.mode==='flash'?'ЗАПРОС ФЛЕШБЭКА: если уместно, отрази воспоминание в следующем ответе.':'ЗАКРЕПЛЁННОЕ ВОСПОМИНАНИЕ',recordText(r),r.id);
-  if(overview)await add('ОБЩИЙ СЮЖЕТ',overview.text);
+  if(overview)await add(settings.compactOverview?'СЖАТЫЙ ОБЩИЙ СЮЖЕТ (выборка, оригинал сохранён)':'ОБЩИЙ СЮЖЕТ',settings.compactOverview?compactOverviewText(overview.text,settings.compactOverviewChars):overview.text);
   else for(const b of activeBatches(mem,chat).slice(-3))await add('СВОДКА СЦЕНЫ'+(b.date?' · '+b.date:''),b.summary);
   for(const {r,score} of ranked.filter(x=>!forcedMap.has(x.r.id)&&!x.r.pinned)){
     if((settings.autoRecall&&score>0)||r.importance==='high')await add(score>0?'ПОДХОДЯЩЕЕ ВОСПОМИНАНИЕ':'ВАЖНЫЙ ФАКТ',recordText(r),r.id);
