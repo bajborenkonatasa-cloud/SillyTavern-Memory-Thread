@@ -1,7 +1,7 @@
 // Framework-free memory mechanics. No network, DOM or SillyTavern dependencies.
 export const VERSION = 1;
 export const CATEGORIES = {event:'✨ Событие', relationship:'💞 Отношения', secret:'🔒 Секрет', promise:'🎗 Обещание', quote:'❝ Реплика', character:'👤 Персонаж', item:'🗝 Предмет', place:'🏡 Место', flashback:'🌙 Воспоминание', scene:'🌦 Состояние сцены'};
-export const DEFAULTS = {compactOverview:false,compactOverviewChars:900,enabled:true,mode:'main',url:'',model:'',budget:1500,depth:2,chunk:15,remind:15,autoArchive:false,autoEvery:30,autoRecall:true,toast:true,cooldown:8,output:2400,inputLimit:14000,chapterSize:5,adultContent:false,adultDetail:false,customPrompt:'',left:null,top:null};
+export const DEFAULTS = {compactOverview:false,compactOverviewChars:900,enabled:true,mode:'main',url:'',model:'',budget:1500,depth:2,chunk:15,remind:15,autoArchive:false,autoEvery:30,autoRecall:true,autoFlashbacks:true,flashEvery:12,toast:true,cooldown:8,output:2400,inputLimit:14000,chapterSize:5,adultContent:false,adultDetail:false,customPrompt:'',left:null,top:null};
 export const uid = () => globalThis.crypto.randomUUID();
 export const clone = x => JSON.parse(JSON.stringify(x));
 export const norm = x => String(x ?? '').toLocaleLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
@@ -114,8 +114,20 @@ export async function buildContext(mem,chat,settings,count=estimateTokens,forced
   for(const {r,score} of ranked.filter(x=>!forcedMap.has(x.r.id)&&!x.r.pinned)){
     if((settings.autoRecall&&score>0)||r.importance==='high')await add(score>0?'ПОДХОДЯЩЕЕ ВОСПОМИНАНИЕ':'ВАЖНЫЙ ФАКТ',recordText(r),r.id);
   }
+  // A small, contextual flashback invitation; no extra API request or fabricated memory.
+  // Restrict to confirmed, non-secret facts; only if a matching record actually fits.
+  let flashCandidate=null;
+  const every=Math.max(5,Math.min(100,Number(settings.flashEvery)||12));
+  const messageCount=chat.filter(eligible).length;
+  if(settings.autoRecall&&settings.autoFlashbacks&&messageCount>0&&Math.floor(messageCount/2)%every===0){
+    const candidate=ranked.find(x=>x.score>=6&&selected.includes(x.r.id)&&x.r.certainty==='fact'&&x.r.category!=='secret'&&x.r.category!=='scene'&&x.r.category!=='quote'&&x.r.knownTo?.length>0);
+    if(candidate){
+      const cue=`\n\n[ЖИВОЕ ВОСПОМИНАНИЕ — ВОЗМОЖНОСТЬ]\nЕсли это органично для текущей сцены, пусть только персонаж, указанный среди «Знают», на мгновение вспомнит факт «${candidate.r.title}». Покажи через короткий образ, звук, жест или изменение интонации (1–3 предложения) и вернись к действию. Не повторяй дословно запись, не придумывай события, не раскрывай тайны и не управляй {{user}}, если другие инструкции запрещают. Если момент не подходит — пропусти.\n[/ЖИВОЕ ВОСПОМИНАНИЕ]`;
+      if(await count(text+cue)<=budget){text+=cue;flashCandidate=candidate.r.title;}
+    }
+  }
   if(text===header)text='';
-  return {text,tokens:await count(text),selected,omitted,matches:ranked.filter(x=>selected.includes(x.r.id)&&x.score>0).map(x=>({id:x.r.id,title:x.r.title,reason:x.reason}))};
+  return {text,tokens:await count(text),selected,omitted,flashCandidate,matches:ranked.filter(x=>selected.includes(x.r.id)&&x.score>0).map(x=>({id:x.r.id,title:x.r.title,reason:x.reason}))};
 }
 export function exportMemory(mem){return {format:'memory-thread',version:VERSION,exportedAt:new Date().toISOString(),memory:clone(mem)};}
 export function importMemory(payload,chat){
