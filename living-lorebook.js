@@ -22,3 +22,6 @@ export function previewLorebook(memory, chat) {
   }
   return [...cards.values()];
 }
+
+// Shared contextual matching lives in the core context builder.
+export {matchLoreTrigger} from './core.js';
