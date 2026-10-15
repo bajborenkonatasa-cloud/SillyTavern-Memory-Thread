@@ -50,3 +50,46 @@
 .mt-broom-card{border-left:4px solid #b9d98a;background:linear-gradient(135deg,#b9d98a0d,#b58cff08)}
 .mt-broom-pairs{display:grid;gap:8px;margin-top:10px;max-height:42vh;overflow:auto}
 .mt-broom-pairs .mt-merge-option{border-color:#b9d98a30}
+
+/* Living Lorebook · Phase 3 · read-only visual library */
+#mt-panel .mt-lore-hero{position:relative;overflow:hidden;text-align:center;padding:19px 13px 17px;margin-bottom:15px;border:1px solid #d7bde43b;border-radius:18px;background:radial-gradient(circle at 50% -20%,#bb8fe72b,transparent 66%),linear-gradient(135deg,#b897df13,#d89fb50d);box-shadow:inset 0 1px #fff1}
+#mt-panel .mt-lore-ornament{font-size:12px;letter-spacing:5px;color:#d8c3f3;margin-bottom:9px}
+#mt-panel .mt-lore-eyebrow{font-size:9px;letter-spacing:1.8px;color:#cbb1e6}
+#mt-panel .mt-lore-hero h3{font:600 25px/1.2 Georgia,serif;margin:6px 0;color:#f0e6f8}
+#mt-panel .mt-lore-hero p{font-size:12px;opacity:.7;margin:5px 0 15px}
+#mt-panel .mt-lore-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+#mt-panel .mt-lore-stats>span{display:flex;flex-direction:column;gap:2px;padding:10px 4px;border-radius:11px;border:1px solid #dbc5ef24;background:#ffffff09}
+#mt-panel .mt-lore-stats strong{font-size:19px;color:#ead5ff}
+#mt-panel .mt-lore-stats small{font-size:10px;opacity:.7}
+#mt-panel .mt-lore-controls{margin-bottom:12px}
+#mt-panel .mt-lore-search-label{display:block;font-size:11px;opacity:.75;margin:0 0 6px 2px}
+#mt-panel .mt-lore-controls .mt-search{width:100%;margin:0 0 11px;box-sizing:border-box}
+#mt-panel .mt-lore-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+#mt-panel .mt-lore-filters button{font-size:11px!important;padding:8px 3px!important;border-radius:10px!important;white-space:nowrap;background:#ffffff09!important;border:1px solid #d6bee72b!important}
+#mt-panel .mt-lore-filters button span{opacity:.65;font-size:10px}
+#mt-panel .mt-lore-filters button[aria-pressed=true]{background:#b99ad52d!important;border-color:#cbb2e27b!important;color:#f0ddff!important}
+#mt-panel .mt-lore-list{display:grid;gap:9px;margin-bottom:12px}
+#mt-panel .mt-lore-entry{overflow:hidden;border:1px solid #d5bce536;border-radius:15px;background:linear-gradient(135deg,#bba1d317,#ffffff05)}
+#mt-panel .mt-lore-entry[hidden]{display:none!important}
+#mt-panel .mt-lore-entry summary{display:flex;align-items:center;gap:11px;cursor:pointer;list-style:none;padding:12px;min-height:52px}
+#mt-panel .mt-lore-entry summary::-webkit-details-marker{display:none}
+#mt-panel .mt-lore-avatar{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:12px;background:#c3a0e126;font-size:22px}
+#mt-panel .mt-lore-entry-name{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+#mt-panel .mt-lore-entry-name strong{font-size:14px;overflow-wrap:anywhere}
+#mt-panel .mt-lore-entry-name small{font-size:11px;opacity:.64}
+#mt-panel .mt-lore-chevron{font-size:22px;opacity:.65;transition:transform .2s}
+#mt-panel .mt-lore-entry[open] .mt-lore-chevron{transform:rotate(180deg)}
+#mt-panel .mt-lore-entry-body{padding:0 13px 13px;border-top:1px solid #d7bde423}
+#mt-panel .mt-lore-entry-body p{white-space:pre-wrap;line-height:1.55;font-size:13px;margin:11px 0}
+#mt-panel .mt-lore-keywords{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}
+#mt-panel .mt-lore-keywords span{padding:3px 7px;border-radius:999px;background:#bd9ed11d;border:1px solid #d6bee52b;font-size:10px}
+#mt-panel .mt-lore-source{font-size:11px;color:#afd4b6;margin-top:9px}
+#mt-panel .mt-lore-empty{border:1px dashed #cbb3e044;border-radius:16px;padding:28px 17px;text-align:center;background:#ffffff05}
+#mt-panel .mt-lore-empty[hidden]{display:none!important}
+#mt-panel .mt-lore-empty>span{display:block;font-size:43px;margin-bottom:10px}
+#mt-panel .mt-lore-empty strong{display:block;font:600 19px Georgia,serif}
+#mt-panel .mt-lore-empty p{font-size:12px;opacity:.72;line-height:1.6;margin:10px 0 0}
+#mt-panel .mt-lore-safety{border:1px solid #d6bde32b;border-radius:11px;padding:10px 12px;margin-top:13px;background:#ffffff06}
+#mt-panel .mt-lore-safety summary{font-size:12px;cursor:pointer}
+#mt-panel .mt-lore-safety p{font-size:12px;opacity:.77;line-height:1.6;margin:9px 0 0}
+@media(max-width:390px){#mt-panel .mt-lore-filters button{font-size:10px!important}#mt-panel .mt-lore-entry summary{gap:8px;padding:10px}#mt-panel .mt-lore-avatar{width:38px;height:38px}}
