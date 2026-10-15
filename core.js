@@ -99,7 +99,8 @@ export function compactOverviewText(value, limit=900){
   return result||raw.slice(0,cap-1).trimEnd()+'…';
 }
 export async function buildContext(mem,chat,settings,count=estimateTokens,forced=[]){
-  const query=chat.filter(eligible).slice(-4).map(m=>m.mes).join('\n');
+  // Hidden messages remain valid memory sources, but must not trigger recall as recent chat.
+  const query=chat.filter(m=>eligible(m) && !m.is_hidden).slice(-4).map(m=>m.mes).join('\n');
   const records=activeRecords(mem,chat); const scene=latestScene(mem,chat),overview=latestOverview(mem,chat);
   const forcedMap=new Map(forced.map(f=>[f.id,f]));
   const ranked=records.map(r=>{
