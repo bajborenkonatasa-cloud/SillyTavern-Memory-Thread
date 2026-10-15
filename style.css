@@ -173,3 +173,33 @@
  #mt-panel .mt-lore-stats>span{flex:1;justify-content:center}
  #mt-panel .mt-card{padding:11px}
 }
+
+/* Phase 6 — compact reading-first layout, mobile typography and disclosure panels. */
+#mt-panel .mt-section-heading h3{font-size:16px!important;line-height:1.2!important;letter-spacing:0!important}
+#mt-panel .mt-section-heading{margin:2px 0 7px!important}
+#mt-panel .mt-section-heading .mt-kicker{font-size:9px!important;letter-spacing:.9px!important}
+#mt-panel .mt-journal-title{font-size:16px!important}
+#mt-panel .mt-card h3{font-size:14px!important;line-height:1.3!important}
+#mt-panel .mt-card p{font-size:12px!important;line-height:1.48!important}
+#mt-panel .mt-card{padding:10px!important;margin-bottom:7px!important}
+#mt-panel .mt-info{font-size:12px!important;line-height:1.48!important;padding:9px 10px!important;margin:6px 0!important;border-radius:10px!important}
+#mt-panel .mt-chapter-card{padding:0!important;overflow:hidden}
+#mt-panel .mt-chapter-card>summary{font-size:13px!important;padding:10px 11px!important;line-height:1.3!important}
+#mt-panel .mt-chapter-card>summary strong{font-size:13px!important}
+#mt-panel .mt-chapter-card .mt-sub{font-size:10px!important}
+#mt-panel .mt-lore-hero h3{font-size:16px!important}
+#mt-panel .mt-lore-entry-name strong{font-size:12px!important}
+#mt-panel .mt-lore-entry-body p{font-size:12px!important}
+#mt-panel .mt-toolbar button{font-size:12px!important;min-height:36px!important}
+#mt-panel .mt-settings-card h3{font-size:14px!important}
+#mt-panel .mt-compact-help,#mt-panel .mt-compact-tools{border:1px solid #cbb3e033;border-radius:10px;margin:7px 0;background:#ffffff05;overflow:hidden}
+#mt-panel .mt-compact-help>summary,#mt-panel .mt-compact-tools>summary{padding:9px 11px;font-size:12px;line-height:1.3;cursor:pointer;color:#d5c0e9;list-style:none}
+#mt-panel .mt-compact-help>summary::-webkit-details-marker,#mt-panel .mt-compact-tools>summary::-webkit-details-marker{display:none}
+#mt-panel .mt-compact-help>summary:before,#mt-panel .mt-compact-tools>summary:before{content:'▸';margin-right:7px;font-size:10px}
+#mt-panel .mt-compact-help[open]>summary:before,#mt-panel .mt-compact-tools[open]>summary:before{content:'▾'}
+#mt-panel .mt-compact-help>.mt-info{margin:0 7px 7px!important}
+#mt-panel .mt-compact-tools>.mt-row{padding:4px 8px 9px;margin:0!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#mt-panel .mt-compact-tools button{white-space:normal!important;text-align:center!important;line-height:1.3!important;font-size:11px!important;padding:7px 6px!important;min-width:0!important}
+#mt-panel .mt-arcs,#mt-panel .mt-chapters{margin:5px 0!important}
+#mt-panel .mt-scenes-heading{margin-top:13px!important}
+@media(max-width:600px){#mt-panel .mt-head h2{font-size:17px!important}#mt-panel .mt-journal-sub{font-size:10px!important}#mt-panel .mt-stats span{font-size:9px!important}#mt-panel .mt-lore-stats small{font-size:9px!important}}
