@@ -144,10 +144,24 @@ export function linkedMemoryBoosts(records, directMatches, maxLinks=2) {
 export function safeAutomaticRecall(record) {
   return !(record?.category==='secret' && !(record.knownTo||[]).some(x=>String(x).trim()));
 }
-export async function buildContext(mem,chat,settings,count=estimateTokens,forced=[]){
+// Phase 15: narrator-safe filtering for explicitly private facts.
+// This is intentionally conservative: only secrets have an enforceable owner list.
+// A missing actor never grants access; forced/pinned items are still subject to this filter.
+export function canShareSecret(record, audience) {
+  if(record?.category!=='secret') return true;
+  const known=Array.isArray(record.knownTo)?record.knownTo:[];
+  const names=(Array.isArray(audience)?audience:[audience]).map(normalizePhrase).filter(Boolean);
+  if(!names.length) return false;
+  return known.some(k=>names.includes(normalizePhrase(k)));
+}
+export async function buildContext(mem,chat,settings,count=estimateTokens,forced=[],audience=undefined){
   // Hidden messages remain valid memory sources, but must not trigger recall as recent chat.
   const query=chat.filter(m=>eligible(m) && !m.is_hidden).slice(-4).map(m=>m.mes).join('\n');
-  const records=activeRecords(mem,chat); const scene=latestScene(mem,chat),overview=latestOverview(mem,chat);
+  const allRecords=activeRecords(mem,chat);
+  // In chat mode, only share secrets with the actual answering character.
+  // This prevents an explicitly private record from leaking via automatic, pinned or forced recall.
+  const records=audience===undefined?allRecords:allRecords.filter(r=>canShareSecret(r,audience));
+  const scene=latestScene(mem,chat),overview=latestOverview(mem,chat);
   const forcedMap=new Map(forced.map(f=>[f.id,f]));
   const map=sourceMap(chat);
   const direct=records.map(r=>({r,lore:validSources(r.sources,map)?matchLoreTrigger(r,query):null}));

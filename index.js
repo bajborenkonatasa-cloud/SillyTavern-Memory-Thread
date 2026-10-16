@@ -72,7 +72,11 @@ const setPrompt=text=>ctx().setExtensionPrompt(TAG,text,1,settings.depth,false,0
 async function refreshContext(showToast=false){
   const serial=++previewSerial,expected=scope(),epoch=life;
   if(!settings.enabled){preview={text:'',tokens:0,selected:[],omitted:[],matches:[]};setPrompt('');return;}
-  const result=await buildContext(mem(),chat(),settings,count,forced);
+  const c=ctx();
+  // Solo chats have a known speaking character. Group chats have no single reliable
+  // recipient: do not automatically disclose private secrets there.
+  const audience=c.groupId?null:(c.characters?.[c.characterId]?.name||null);
+  const result=await buildContext(mem(),chat(),settings,count,forced,audience);
   if(serial!==previewSerial||scope()!==expected||epoch!==life)return;
   preview=result;setPrompt(result.text);
   if(showToast&&settings.toast){const hit=result.matches.find(m=>chat().length-(remembered.get(m.id)??-10000)>=settings.cooldown);if(hit){remembered.set(hit.id,chat().length);notify('🌙 '+hit.title,`В контексте · совпадение: ${hit.reason}`,()=>{openPanel('memories');editRecord(hit.id);});}}
