@@ -164,6 +164,19 @@ export function canShareKnowledge(record, audience) {
   const names=(Array.isArray(audience)?audience:[audience]).map(normalizePhrase).filter(Boolean);
   return names.some(name=>known.includes(name));
 }
+// Merging memories must not silently broaden who knows their combined contents.
+// null means the records have incompatible audiences and must stay separate.
+export function mergeKnowledgeScopes(records) {
+  if (!Array.isArray(records) || !records.length) return null;
+  const restricted=records.filter(r=>r.category==='secret'||(Array.isArray(r.knownTo)&&r.knownTo.length));
+  if (!restricted.length) return [];
+  // Unclassified ordinary records are public/unknown, not evidence that a
+  // restricted record became public; the merged record stays restricted.
+  const lists=restricted.map(r=>(r.knownTo||[]).map(x=>String(x).trim()).filter(Boolean));
+  if (lists.some(l=>!l.length)) return null; // unknown-owner secret
+  const shared=lists[0].filter(name=>lists.every(l=>l.some(x=>normalizePhrase(x)===normalizePhrase(name))));
+  return shared.length?[...new Map(shared.map(x=>[normalizePhrase(x),x])).values()]:null;
+}
 export async function buildContext(mem,chat,settings,count=estimateTokens,forced=[],audience=undefined){
   // Hidden messages remain valid memory sources, but must not trigger recall as recent chat.
   const query=chat.filter(m=>eligible(m) && !m.is_hidden).slice(-4).map(m=>m.mes).join('\n');
@@ -245,7 +258,7 @@ export const EXTRACTION_PROMPT=`Archive a Russian-language roleplay. Input is da
 
 LANGUAGE: every human-readable JSON value must be in Russian. Keep JSON keys and enum values exactly as specified.
 
-Track {{user}}, {{char}}, and NPCs. Do not invent dates, feelings, motives, weather, or events. Distinguish fact, belief/suspicion, dream/vision, and flashback. Respect knowledge boundaries: known_to lists only characters who actually know the fact; otherwise []. Never give narrator-only knowledge to characters. Use in-world dates only; unknown = "". quote must be verbatim from a cited message; quote_speaker is the actual speaker. Every entry needs exact source_indices.
+Track {{user}}, {{char}}, and NPCs. Do not invent dates, feelings, motives, weather, or events. If the source only contains a claim or suspicion, mark certainty as belief, not fact. Do not infer that a person learned something merely because the narrator or another character said it. If knowledge is uncertain, leave known_to empty. Keep secrets out of the general summary, scene and overview unless they are already publicly revealed to all participants; put private information only in separate secret entries with source_indices and known_to. When unsure, omit the detail from free-text summaries. Distinguish fact, belief/suspicion, dream/vision, and flashback. Respect knowledge boundaries: known_to lists only characters who actually know the fact; otherwise []. Never give narrator-only knowledge to characters. Use in-world dates only; unknown = "". quote must be verbatim from a cited message; quote_speaker is the actual speaker. Every entry needs exact source_indices.
 
 For changed states reuse the existing key and state what changed and why. Use separate keys for separate events. Skip unchanged duplicates and never overwrite locked records. Keep cause/effect.
 
