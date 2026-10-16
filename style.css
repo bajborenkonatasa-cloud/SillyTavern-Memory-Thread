@@ -240,3 +240,14 @@
  #mt-panel .mt-lore-future span{font-size:9px;padding:3px 5px}
  #mt-panel .mt-lore-stats small{font-size:8px!important}
 }
+
+/* Phase 14: compact, accessible lore sections */
+#mt-panel .mt-lore-future button{font:inherit;font-size:11px;color:inherit;background:#a88ec21c;border:1px solid #c4a4db35;border-radius:8px;padding:5px 7px;cursor:pointer}
+#mt-panel .mt-lore-future button[aria-pressed="true"]{border-color:#d5b4ee;background:#bfa1d044}
+#mt-panel .mt-lore-section{border:1px solid #c4a4db35;border-radius:12px;padding:10px;margin:9px 0}
+#mt-panel .mt-lore-section[hidden]{display:none!important}
+#mt-panel .mt-lore-section h4{font-size:14px;margin:0 0 8px}
+#mt-panel .mt-lore-mini{padding:8px 0;border-top:1px solid #c4a4db20}
+#mt-panel .mt-lore-mini strong{display:block;font-size:12px}
+#mt-panel .mt-lore-mini small,#mt-panel .mt-lore-section>small{display:block;font-size:10px;opacity:.7;margin-top:3px}
+#mt-panel .mt-lore-mini p{font-size:11px;white-space:pre-wrap;margin:5px 0}

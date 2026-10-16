@@ -25,3 +25,26 @@ export function previewLorebook(memory, chat) {
 
 // Shared contextual matching lives in the core context builder.
 export {matchLoreTrigger} from './core.js';
+
+// Phase 14: local read-only thematic views; never modify memory or prompts.
+export function previewLoreSections(memory, chat) {
+  const records=activeRecords(memory,chat).filter(r=>validSources(r.sources,sourceMap(chat)));
+  const sourceSet=r=>new Set((r.sources||[]).map(s=>`${s.id}:${s.hash}`));
+  const links=[];
+  for(let i=0;i<records.length;i++)for(let j=i+1;j<records.length;j++){
+    const a=records[i],b=records[j];
+    if(['secret','dream'].includes(a.category)||['secret','dream'].includes(b.category))continue;
+    if(a.certainty!=='fact'||b.certainty!=='fact')continue;
+    const overlap=[...sourceSet(a)].some(x=>sourceSet(b).has(x));
+    if(!overlap)continue;
+    links.push({a:a.title,b:b.title,reason:'Общий подтверждённый источник'});
+    if(links.length>=40)break;
+  }
+  const only=categories=>records.filter(r=>categories.includes(r.category));
+  return {
+    links,
+    world:only(['place','world','faction','organization']),
+    secrets:only(['secret']).map(r=>({...r,knownTo:[...(r.knownTo||[])]})),
+    plot:only(['event','promise','conflict','relationship','quest','goal']),
+  };
+}
