@@ -22,7 +22,7 @@ test('knowing character retains summary and pinned secret',async()=>{
  assert.match(r.text,/Тайное письмо лежит в башне/);
 });
 test('no secret means no suppression',async()=>{
- const m=fixture();m.records=[{...m.records[0],id:'public',category:'event',title:'Публичное событие',pinned:true}];
+ const m=fixture();m.records=[{...m.records[0],id:'public',category:'event',title:'Публичное событие',knownTo:[],pinned:true}];
  const r=await buildContext(m,[],settings,count,[],'Роэн');
  assert.equal(r.guardedSummaries,false);
  assert.match(r.text,/Тайное письмо лежит в башне/);
