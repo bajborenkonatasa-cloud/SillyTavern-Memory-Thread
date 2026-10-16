@@ -161,7 +161,12 @@ export async function buildContext(mem,chat,settings,count=estimateTokens,forced
   // In chat mode, only share secrets with the actual answering character.
   // This prevents an explicitly private record from leaking via automatic, pinned or forced recall.
   const records=audience===undefined?allRecords:allRecords.filter(r=>canShareSecret(r,audience));
-  const scene=latestScene(mem,chat),overview=latestOverview(mem,chat);
+  // Phase 16: free-text summaries have no per-sentence knowledge provenance.
+  // If this answering character cannot know an active secret, omit these
+  // unstructured summaries rather than risk bypassing the record-level guard.
+  // Archive contents are never modified. Structured safe records still recall.
+  const guardedSummaries=audience!==undefined && allRecords.some(r=>r.category==='secret' && !canShareSecret(r,audience));
+  const scene=guardedSummaries?null:latestScene(mem,chat),overview=guardedSummaries?null:latestOverview(mem,chat);
   const forcedMap=new Map(forced.map(f=>[f.id,f]));
   const map=sourceMap(chat);
   const direct=records.map(r=>({r,lore:validSources(r.sources,map)?matchLoreTrigger(r,query):null}));
@@ -191,7 +196,7 @@ export async function buildContext(mem,chat,settings,count=estimateTokens,forced
     if(settings.autoRecall&&score>0&&safeAutomaticRecall(r))await add('ПОДХОДЯЩЕЕ ВОСПОМИНАНИЕ',recordText(r),r.id,'recall');
   }
   if(overview)await add(settings.compactOverview?'СЖАТЫЙ ОБЩИЙ СЮЖЕТ (выборка, оригинал сохранён)':'ОБЩИЙ СЮЖЕТ',settings.compactOverview?compactOverviewText(overview.text,settings.compactOverviewChars):overview.text,null,'overview');
-  else for(const b of activeBatches(mem,chat).slice(-3))await add('СВОДКА СЦЕНЫ'+(b.date?' · '+b.date:''),b.summary,null,'overview');
+  else if(!guardedSummaries)for(const b of activeBatches(mem,chat).slice(-3))await add('СВОДКА СЦЕНЫ'+(b.date?' · '+b.date:''),b.summary,null,'overview');
   // A small, contextual flashback invitation; no extra API request or fabricated memory.
   // Restrict to confirmed, non-secret facts; only if a matching record actually fits.
   let flashCandidate=null;
@@ -205,7 +210,7 @@ export async function buildContext(mem,chat,settings,count=estimateTokens,forced
     }
   }
   if(text===header)text='';
-  return {text,tokens:await count(text),usage,selected,omitted,flashCandidate,matches:ranked.filter(x=>selected.includes(x.r.id)&&x.score>0).map(x=>({id:x.r.id,title:x.r.title,reason:x.reason}))};
+  return {text,tokens:await count(text),usage,selected,omitted,guardedSummaries,flashCandidate,matches:ranked.filter(x=>selected.includes(x.r.id)&&x.score>0).map(x=>({id:x.r.id,title:x.r.title,reason:x.reason}))};
 }
 export function exportMemory(mem){return {format:'memory-thread',version:VERSION,exportedAt:new Date().toISOString(),memory:clone(mem)};}
 export function importMemory(payload,chat){
