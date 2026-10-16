@@ -98,31 +98,44 @@ export function compactOverviewText(value, limit=900){
   const result=sentences.filter((_,i)=>chosen.has(i)).join(' ').trim();
   return result||raw.slice(0,cap-1).trimEnd()+'…';
 }
-// Phase 10: conservative one-hop relationships between verified memories.
-// Only exact named participants are used: broad keywords can cause false associations.
-// The related memory is ranked in the existing context; it is never injected twice.
+// Phase 11: evidence-based one-hop links. A shared character is not evidence
+// that two memories describe the same event. Require a specific entity reference
+// or a common verified source message as well as the shared participant.
 export function linkedMemoryBoosts(records, directMatches, maxLinks=2) {
   const boosts=new Map();
-  const directIds=new Set(directMatches.filter(x=>x.lore && x.lore.score>0).map(x=>x.r.id));
-  const anchors=directMatches.filter(x=>x.lore && x.lore.score>0).slice(0,3);
-  if(!anchors.length)return boosts;
+  const directIds=new Set(directMatches.filter(x=>x.lore?.score>0).map(x=>x.r.id));
+  const anchors=directMatches.filter(x=>x.lore?.score>0 && ['item','place'].includes(x.r.category)).slice(0,3);
   const named=r=>new Set((r.participants||[]).map(norm).filter(x=>x.length>=4));
-  const links=[];
+  const sourceKeys=r=>new Set((r.sources||[]).filter(s=>s.id&&s.hash).map(s=>s.id+':'+s.hash));
+  const exactPhrase=(text,phrase)=>{
+    const needle=norm(phrase);
+    if(needle.length<5 || !/[\p{L}]/u.test(needle))return false;
+    const hay=norm(text);let at=hay.indexOf(needle);
+    while(at!==-1){
+      const before=at===0?'':hay[at-1],after=hay[at+needle.length]||'';
+      if((!before||!/[\p{L}\p{N}]/u.test(before))&&(!after||!/[\p{L}\p{N}]/u.test(after)))return true;
+      at=hay.indexOf(needle,at+1);
+    }
+    return false;
+  };
+  const candidates=[];
   for(const target of records){
     if(directIds.has(target.id)||target.disabled||target.certainty!=='fact'||
        ['secret','scene','quote','flashback'].includes(target.category))continue;
     const people=named(target);if(!people.size)continue;
-    for(const anchor of anchors){
-      const shared=[...named(anchor.r)].filter(n=>people.has(n));
-      if(!shared.length)continue;
-      // Do not expand via a generic character mention: require a specific
-      // item/place trigger to anchor a one-hop connection.
-      if(!['item','place'].includes(anchor.r.category))continue;
-      links.push({id:target.id,score:2,reason:`связь с «${anchor.r.title}»: ${shared[0]}`});
+    for(const {r:anchor} of anchors){
+      const shared=[...named(anchor)].find(n=>people.has(n));
+      if(!shared)continue;
+      const overlap=[...sourceKeys(anchor)].some(key=>sourceKeys(target).has(key));
+      const labels=[anchor.title,...(anchor.keywords||[])].filter(x=>norm(x).length>=5);
+      const explicit=labels.some(label=>exactPhrase(`${target.title} ${target.text} ${(target.keywords||[]).join(' ')}`,label));
+      if(!overlap&&!explicit)continue;
+      candidates.push({id:target.id,score:explicit?4:3,reason:`подтверждённая связь с «${anchor.title}» (${explicit?'упоминание предмета/места':'общий источник'}; ${shared})`});
       break;
     }
   }
-  for(const link of links.slice(0,Math.max(0,Math.min(3,maxLinks))))boosts.set(link.id,link);
+  candidates.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
+  for(const link of candidates.slice(0,Math.max(0,Math.min(3,maxLinks))))boosts.set(link.id,link);
   return boosts;
 }
 export async function buildContext(mem,chat,settings,count=estimateTokens,forced=[]){
